@@ -1,0 +1,2 @@
+[2,"\r\nAttaching package: 'dplyr'\r\n\r\nThe following objects are masked from 'package:stats':\r\n\r\n    filter, lag\r\n\r\nThe following objects are masked from 'package:base':\r\n\r\n    intersect, setdiff, setequal, union\r\n\r\n"]
+[2,"Error in uniroot(ee_func, c(-20, 20)) : \r\n  f() values at end points not of opposite sign\r\nCalls: sourceWithProgress -> eval -> eval -> tnd_nc_rr -> uniroot\r\nIn addition: Warning messages:\r\n1: package 'dplyr' was built under R version 4.0.4 \r\n2: package 'numDeriv' was built under R version 4.0.3 \r\nExecution halted\r\n"]

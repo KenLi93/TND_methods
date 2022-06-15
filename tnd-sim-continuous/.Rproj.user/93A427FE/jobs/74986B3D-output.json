@@ -1,0 +1,2 @@
+[1,"[1] \"1 1\"\r\n"]
+[2,"Error: $ operator is invalid for atomic vectors\r\nIn addition: Warning message:\r\npackage 'numDeriv' was built under R version 4.0.3 \r\nExecution halted\r\n"]

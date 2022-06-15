@@ -1,0 +1,2 @@
+[1,"[1] \"1 1\"\r\n"]
+[2,"Error in expit(mu_0y + beta0 * A + mu_uy * U + mu_xy * X) : \r\n  object 'beta0' not found\r\nCalls: sourceWithProgress ... source -> withVisible -> eval -> eval -> rbinom -> expit\r\nIn addition: Warning message:\r\npackage 'numDeriv' was built under R version 4.0.3 \r\nExecution halted\r\n"]

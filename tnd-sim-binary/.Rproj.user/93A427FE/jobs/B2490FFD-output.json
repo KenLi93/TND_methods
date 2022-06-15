@@ -1,0 +1,1 @@
+[2,"Error in rbinom(N, 1, exp(eta_0y + eta_uy * U)) : \r\n  object 'eta_0y' not found\r\nCalls: sourceWithProgress -> eval -> eval -> rbinom\r\nExecution halted\r\n"]

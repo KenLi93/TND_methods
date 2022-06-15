@@ -1,0 +1,40 @@
+source("param.R")
+source("tnd-nc-continuous.R")
+source("tnd-iptw.R")
+source("logit_reg.R")
+NSIM <- 1000
+
+set.seed(2022)
+
+for (ii in 7:nrow(param_grid)) {
+  
+  
+  
+  iptw_RES <- data.frame(iptw_bias = rep(NA, NSIM),
+                         iptw_coverage = rep(NA, NSIM),
+                         iptw_se = rep(NA, NSIM))
+  
+  for (jj in 1:NSIM) {
+    
+    print(paste(ii, jj))
+    beta0 <- param_grid[ii, "beta"]
+    mu_0y <- param_grid[ii, "mu_0y"]
+    source("data-gen.R", local = TRUE)
+    
+    ## oracle method using the true treatment bridge function
+    
+    
+    iptw_res <- try(tnd_iptw(study_data), silent = TRUE)
+    
+    if (!class(iptw_res) == "try-error") {
+      iptw_RES$iptw_bias[jj] <- iptw_res$beta - beta0
+      iptw_RES$iptw_se[jj] <- iptw_res$SE
+      iptw_RES$iptw_coverage[jj] <- (beta0 > iptw_res$CI[1] ) &
+        (beta0 < iptw_res$CI[2])
+    }
+    
+  }
+  
+  save(iptw_RES, file = paste0("./results/iptw_RES_setting_", ii, ".RData"))
+  
+}

@@ -1,0 +1,80 @@
+source("params.R")
+source("tnd-nc-methods.R")
+source("tnd-nc-gmm.R")
+source("tnd-iptw.R")
+NSIM <- 1000
+
+
+for (ii in 7:nrow(param_grid)){
+  
+  beta0 <- param_grid$beta[ii]
+  eta_0y <- param_grid$eta_0y[ii]
+  
+  
+  RES <- data.frame(oracle_bias = rep(NA, NSIM),
+                    oracle_coverage = rep(NA, NSIM),
+                    oracle_se = rep(NA, NSIM),
+                    rr_gmm_bias = rep(NA, NSIM),
+                    rr_gmm_coverage = rep(NA, NSIM),
+                    rr_gmm_se = rep(NA, NSIM),
+                    logit_reg_bias = rep(NA, NSIM),
+                    logit_reg_coverage = rep(NA, NSIM),
+                    logit_reg_se = rep(NA, NSIM),
+                    iptw_bias = rep(NA, NSIM),
+                    iptw_coverage = rep(NA, NSIM),
+                    iptw_se = rep(NA, NSIM),
+                    ave_n = rep(NA, NSIM))
+  
+  for (jj in 1:NSIM) {
+    print(paste(ii, jj))
+    
+    source("tnd-data-gen.R", local = TRUE)  
+    
+    ## oracle method using the true treatment bridge function
+    tnd_oracle <- try(tnd_nc_rr_oracle(study_data, p_0a, p_ua, p_0z, p_uz), 
+                      silent = TRUE)
+    if (!class(tnd_oracle) == "try-error") {
+      RES$oracle_bias[jj] <- tnd_oracle$beta - beta0
+      RES$oracle_coverage[jj] <- (beta0 > tnd_oracle$CI[1]) &
+        (beta0 < tnd_oracle$CI[2])
+      RES$oracle_se[jj] <- tnd_oracle$SE
+    }
+    
+    
+    tau_gmm <- trt_bridge_binary(study_data)$tau
+    tnd_rr_gmm <- try(tnd_nc_rr(study_data, tau_gmm), silent = TRUE)
+    
+    
+    if (!class(tnd_rr_gmm) == "try-error") {
+      RES$rr_gmm_bias[jj] <- tnd_rr_gmm$beta - beta0
+      RES$rr_gmm_coverage[jj] <- (beta0 > tnd_rr_gmm$CI[1]) &
+        (beta0 < tnd_rr_gmm$CI[2])
+      RES$rr_gmm_se[jj] <- tnd_rr_gmm$SE
+    }
+    
+    logit_reg_res <- try(logit_reg(study_data), silent = TRUE)
+    
+    
+    if (!class(logit_reg_res) == "try-error") {
+      RES$logit_reg_bias[jj] <- logit_reg_res$beta - beta0
+      RES$logit_reg_se[jj] <- logit_reg_res$SE
+      RES$logit_reg_coverage[jj] <- (beta0 > logit_reg_res$CI[1] ) &
+        (beta0 < logit_reg_res$CI[2])
+    }
+    
+    iptw_res <- try(tnd_iptw(study_data), silent = TRUE)
+    
+    
+    if (!class(iptw_res) == "try-error") {
+      RES$iptw_bias[jj] <- iptw_res$beta - beta0
+      RES$iptw_se[jj] <- iptw_res$SE
+      RES$iptw_coverage[jj] <- (beta0 > iptw_res$CI[1] ) &
+        (beta0 < iptw_res$CI[2])
+    }
+    
+    RES$ave_n[jj] <- nrow(study_data)
+    
+  }
+  
+  save(RES, file = paste0("./results/RES_setting_", ii, ".RData"))
+}

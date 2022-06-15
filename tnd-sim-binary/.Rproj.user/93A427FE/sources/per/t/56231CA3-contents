@@ -1,0 +1,24 @@
+if (!require("sandwich", lib.loc = c(.libPaths(), "/home/qijunli/R_libraries"),
+             quietly = TRUE))
+  install.packages("sandwich", repos = "https://cloud.r-project.org",
+                   lib = "/home/qijunli/R_libraries",
+                   dependencies = TRUE)
+
+if (!require("numDeriv", lib.loc = c(.libPaths(), "/home/qijunli/R_libraries"),
+             quietly = TRUE))
+  install.packages("numDeriv", repos = "https://cloud.r-project.org",
+                   lib = "/home/qijunli/R_libraries",
+                   dependencies = TRUE)
+
+
+
+
+if (!require("dplyr", lib.loc = c(.libPaths(), "/home/qijunli/R_libraries"),
+             quietly = TRUE))
+  install.packages("dplyr", repos = "https://cloud.r-project.org",
+                   lib = "/home/qijunli/R_libraries",
+                   dependencies = TRUE)
+
+
+
+print(parallel::detectCores())
