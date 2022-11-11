@@ -1,0 +1,138 @@
+---
+title: "NC Analysis of Mock U of Michigan Health System Data"
+author: "Kendrick Li"
+date: '2022-11-11'
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list = ls())
+library(dplyr)
+library(MASS)
+library(lubridate)
+library(numDeriv)
+source("nc_functions.R")
+```
+
+In this document, we illustrate the proposed NC estimator using a mock University of Michigan Health System data to study SARS-Cov-2 vaccine effectiveness against symptomatic infection.
+
+## Setup and load the dataset
+```{r cars}
+
+sessionInfo()
+
+tnd_data <- read.csv(file = "mock_tnd_data.csv",
+                     header = TRUE,
+                     stringsAsFactors = FALSE)
+with(tnd_data, table(Vaxname, COVID))
+```
+
+## Data Preprocessing
+1. Categorize age into age groups (younder than 18, 18 to 60, older than 60);
+2. Create dummy variables for Charlson Score (0, 1, 2, larger than 3, missing);
+3. Create dummy variables for calendar months of the latest COVID test;
+4. Create an indicator for Caucasian subjects;
+5. Create the negative control outcome (NCO) as a binary indicator of the presence of at least one of the following conditions: arm/leg cellulitis, eye/ear disorder,  gastro-esophageal disease, atopic dermatitis, injuries, and general adult examination visits.
+```{r pressure, echo=TRUE}
+tnd_data_2 <- tnd_data %>%
+  mutate(age_le_18 = as.numeric(Age < 18),
+         age_geq_18_le_60 = as.numeric(Age >= 18 & Age < 60),
+         age_geq_60 = as.numeric(Age >= 60),
+         wscore_0 = as.numeric(!is.na(wscore) & wscore == 0),
+         wscore_1 = as.numeric(!is.na(wscore) & wscore == 1),
+         wscore_2 = as.numeric(!is.na(wscore) & wscore == 2),
+         wscore_geq_3 = as.numeric(!is.na(wscore) & wscore >= 3),
+         wscore_na = as.numeric(is.na(wscore)),
+         april = as.numeric(months == 4),
+         may = as.numeric(months == 5),
+         june = as.numeric(months == 6),
+         july = as.numeric(months == 7),
+         aug = as.numeric(months == 8),
+         sep = as.numeric(months == 9),
+         oct = as.numeric(months == 10),
+         nov_dec = as.numeric(months >= 11),
+         caucasian = as.numeric(Race == "Caucasian"),
+         nco = as.numeric(EE + CLT + gfd + dermatitis + injuries + GE_NCO > 0))
+```
+
+## Detecting the confounding bias
+1. Adjusted logistic regression of the NCO on vaccination and NCE 
+```{r nco_reg, echo = TRUE}
+glm_NCO <- glm(nco ~ vaccinated + IMM + age_geq_18_le_60 + age_geq_60 + Gender + caucasian + wscore_geq_3 + april + may + june + july + aug + sep + oct,
+               family = binomial,
+               data = tnd_data_2)
+summary(glm_NCO)
+```
+The p-values for the coefficients of SARS-Cov-2 vaccination and NCE (prior immunization) are <2e-16 and 2.09e-14, respectively, indicating the presence of confounding bias.
+
+2. Adjusted logistic regression of COVID-19 on vaccination and NCE 
+```{r nce_reg, echo = TRUE}
+glm_NCE <- glm(COVID ~ vaccinated + IMM + age_geq_18_le_60 + age_geq_60 + Gender + caucasian + wscore_geq_3 + april + may + june + july + aug + sep + oct,
+               family = binomial,
+               data = tnd_data_2)
+summary(glm_NCE)
+```
+The p-value for the coefficient NCE (prior immunization) is <2e-16, also indicating the presence of confounding bias.
+
+## NC estimator of vaccine effectiveness
+1. Pfizer-BioNTech vaccine
+```{r pfizer_nc}
+pfizer_data <- tnd_data_2 %>% filter(Vaxname %in% c("Pfizer", "none"))
+
+pfizer_iptw <- tnd_iptw(data = list(A = pfizer_data$vaccinated,
+                                    Y = pfizer_data$COVID,
+                                    X = pfizer_data[, c("age_geq_18_le_60", "age_geq_60", "Gender", "caucasian", "wscore_geq_3", "april", "may", "june", "july", "aug", "sep", "oct")]))
+
+pfizer_nc <- nc_covid_ve(data = pfizer_data,
+                         nce = "IMM",
+                         nco = "nco",
+                         x = c("age_geq_18_le_60", "age_geq_60", "Gender", "caucasian", "wscore_geq_3", "april", "may", "june", "july", "aug", "sep", "oct"))
+```
+The estimated VE and their 95\% confidence intervals are:
+
+* Logistic regression: `r round(pfizer_nc$VE_logit, 3)` (`r round(pfizer_nc$VE_CI_logit[1], 3)`, `r round(pfizer_nc$VE_CI_logit[2], 3)`)
+* IPTW: `r round(pfizer_iptw$ve, 3)` (`r round(pfizer_iptw$ve_ci[1], 3)`, `r round(pfizer_iptw$ve_ci[2], 3)`)
+* NC estimator: `r round(pfizer_nc$VE, 3)` (`r round(pfizer_nc$VE_CI[1], 3)`, `r round(pfizer_nc$VE_CI[2], 3)`)
+
+
+2. Moderna vaccine
+```{r moderna_nc}
+moderna_data <- tnd_data_2 %>% filter(Vaxname %in% c("Moderna", "none"))
+
+moderna_iptw <- tnd_iptw(data = list(A = moderna_data$vaccinated,
+                                    Y = moderna_data$COVID,
+                                    X = moderna_data[, c("age_geq_18_le_60", "age_geq_60", "Gender", "caucasian", "wscore_geq_3", "april", "may", "june", "july", "aug", "sep", "oct")]))
+
+moderna_nc <- nc_covid_ve(data = moderna_data,
+                         nce = "IMM",
+                         nco = "nco",
+                         x = c("age_geq_18_le_60", "age_geq_60", "Gender", "caucasian", "wscore_geq_3", "april", "may", "june", "july", "aug", "sep", "oct"))
+```
+The estimated VE and their 95\% confidence intervals are:
+
+* Logistic regression: `r round(moderna_nc$VE_logit, 3)` (`r round(moderna_nc$VE_CI_logit[1], 3)`, `r round(moderna_nc$VE_CI_logit[2], 3)`)
+* IPTW: `r round(moderna_iptw$ve, 3)` (`r round(moderna_iptw$ve_ci[1], 3)`, `r round(moderna_iptw$ve_ci[2], 3)`)
+* NC estimator: `r round(moderna_nc$VE, 3)` (`r round(moderna_nc$VE_CI[1], 3)`, `r round(moderna_nc$VE_CI[2], 3)`)
+
+
+3. Johnson \& Jognson's Janssen vaccine
+```{r janssen_nc}
+janssen_data <- tnd_data_2 %>% filter(Vaxname %in% c("Janssen", "none"))
+
+janssen_iptw <- tnd_iptw(data = list(A = janssen_data$vaccinated,
+                                    Y = janssen_data$COVID,
+                                    X = janssen_data[, c("age_geq_18_le_60", "age_geq_60", "Gender", "caucasian", "wscore_geq_3", "april", "may", "june", "july", "aug", "sep", "oct")]))
+
+janssen_nc <- nc_covid_ve(data = janssen_data,
+                         nce = "IMM",
+                         nco = "nco",
+                         x = c("age_geq_18_le_60", "age_geq_60", "Gender", "caucasian", "wscore_geq_3", "april", "may", "june", "july", "aug", "sep", "oct"))
+```
+The estimated VE and their 95\% confidence intervals are:
+
+* Logistic regression: `r round(janssen_nc$VE_logit, 3)` (`r round(janssen_nc$VE_CI_logit[1], 3)`, `r round(janssen_nc$VE_CI_logit[2], 3)`)
+* IPTW: `r round(janssen_iptw$ve, 3)` (`r round(janssen_iptw$ve_ci[1], 3)`, `r round(janssen_iptw$ve_ci[2], 3)`)
+* NC estimator: `r round(janssen_nc$VE, 3)` (`r round(janssen_nc$VE_CI[1], 3)`, `r round(janssen_nc$VE_CI[2], 3)`)
